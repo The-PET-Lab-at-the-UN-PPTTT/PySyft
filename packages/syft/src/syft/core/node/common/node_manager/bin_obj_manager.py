@@ -6,7 +6,6 @@ from typing import Optional
 
 # third party
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm.decl_api import DeclarativeMeta
 from sqlalchemy.orm.session import Session
 from torch import Tensor
 
@@ -55,6 +54,7 @@ class BinObjectManager(ObjectStore):
         local_session = sessionmaker(bind=self.db)()
         result = local_session.query(ObjectMetadata).count()
         local_session.close()
+        return result
 
     def keys(self) -> KeysView[UID]:
         local_session = sessionmaker(bind=self.db)()

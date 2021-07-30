@@ -1,5 +1,6 @@
 # stdlib
 import asyncio
+import os
 import time
 from typing import Any
 from typing import Dict
@@ -9,6 +10,7 @@ from typing import Tuple
 from typing import Union
 
 # third party
+import ascii_magic
 from nacl.signing import SigningKey
 from nacl.signing import VerifyKey
 
@@ -32,7 +34,6 @@ from ..common.node_manager.environment_manager import EnvironmentManager
 from ..common.node_manager.group_manager import GroupManager
 from ..common.node_manager.request_manager import RequestManager
 from ..common.node_manager.role_manager import RoleManager
-from ..common.node_manager.setup_manager import SetupManager
 from ..common.node_manager.user_manager import UserManager
 from ..common.node_service.association_request.association_request_service import (
     AssociationRequestService,
@@ -54,9 +55,6 @@ from ..common.node_service.request_answer.request_answer_service import (
 )
 from ..common.node_service.request_receiver.request_receiver_messages import (
     RequestMessage,
-)
-from ..common.node_service.request_receiver.request_receiver_service import (
-    RequestReceiverService,
 )
 from ..common.node_service.role_manager.role_manager_service import RoleManagerService
 from ..common.node_service.tensor_manager.tensor_manager_service import (
@@ -86,7 +84,6 @@ class Domain(Node):
         signing_key: Optional[SigningKey] = None,
         verify_key: Optional[VerifyKey] = None,
         root_key: Optional[VerifyKey] = None,
-        db_path: Optional[str] = None,
         db_engine: Any = None,
     ):
         super().__init__(
@@ -97,7 +94,6 @@ class Domain(Node):
             vm=vm,
             signing_key=signing_key,
             verify_key=verify_key,
-            db_path=db_path,
             db_engine=db_engine,
         )
         # specific location with name
@@ -109,7 +105,6 @@ class Domain(Node):
         self.roles = RoleManager(db_engine)
         self.groups = GroupManager(db_engine)
         self.environments = EnvironmentManager(db_engine)
-        self.setup = SetupManager(db_engine)
         self.association_requests = AssociationRequestManager(db_engine)
         self.data_requests = RequestManager(db_engine)
         self.datasets = DatasetManager(db_engine)
@@ -155,54 +150,21 @@ class Domain(Node):
         super().post_init()
         self.set_node_uid()
 
-    def loud_print(self):
+    def loud_print(self) -> None:
+        install_path = os.path.abspath(
+            os.path.join(os.path.realpath(__file__), "../../../../img/")
+        )
+        ascii_magic.to_terminal(
+            ascii_magic.from_image_file(
+                img_path=install_path + "/pygrid.png", columns=83
+            )
+        )
+
         print(
-            """
-                          `-+yy+-`
-                        .:oydddddhyo:.
-                     `/yhdddddddddddhys:`
-                 .`   ./shdddddddddhys/.   ``
-             `./shhs/.`  .:oydddhyo:.   .:osyo:.`
-          `-oydmmmmmmdy+-`  `-//-`  `-/syhhhhhyyo/-`
-        `+hmmmmmmmmmmddddy+`      `/shhhhhhhhhyyyyys/`
-         `-ohdmmmmmmmddy+-`  `::.  `-/syhhhhhhyyys/-`
-      -o-`   ./yhddhs/.  `./shddhs/.`  .:oyyhyo:.   `./.
-      -ddhs/.`  .::`  `-+ydddddddddhs+-`  `--`   `-+oyy-
-      -dddddhs+-   `/shdddddddddddddhhhyo:`   .:+syyyyy-
-      -ddddddddh.  -hdddddddddddddddhhhhyy-  `syyyyyyyy-
-      -dddddhhhh-  -hhhhhhddddddddhhyyysss-  `ssssysyyy-
-      -hhhhhhhhh-  -hhyyyyyyhhddhyysssssss-  `sssssssss-
-       `-+yhhhhh.  -yyyyyyyyyyysssssssssss-  `ssssso/-`
-       `   ./syy.  -yyyyyyyyyyysssssssssss-  `sso:.   `
-      -y+:`   `-`  -yyyyyyyyssssssssssssss-  `-`   `-/o-
-      -hhhyo/.     `+ssyyssssssssssssssss+`     .:+ssss-
-      -yyyyyyys/`     ./osssssssssssso/.`    `/osssssss-
-      -yyyyyyyyy.  ``    `:+sssoso+:.    ``  `sssssssss-
-      -yyyyyyyys.  -so/.     -//-`    .:os-  `sssssssss-
-      `+syyyssss.  -sssso/-`      `-/ossss-  `ssssssss+`
-         .:ossss.  .ssssssss+`  `+ooooosss-  `sssso:.
-            `-+s.  .ssssssooo.  .oooooooos-  `o/-`
-                   .sssoooooo.  .ooooooooo-
-                   `-/ooooooo.  `ooooooo/-`
-                       .:+ooo.  `ooo+:.`
-                          `-/.  `/-`
-
-
-
-
-
-``````````                 ``````````            ```          ``
-``       ``               ```      ```            `           ``
-``       ``  ```     ```  ``             ``````  ```   `````````
-``     ````   ``    ```   ``    ``````   ```     ```  ```    ```
-`````````      ``  ```    ``     `````   ``      ```  ``      ``
-``              `` ``     ``        ``   ``      ```  ``      ``
-``              ````      ````    ````   ``      ```  ```    ```
-``               ```        ````````     ``      ``    `````````
-               ```
-              ```                __
-                                |  \  _   _   _  .  _
-                                |__/ (_) ||| (_| | | )
+            r"""
+                                                     __
+                                                    |  \  _   _   _  .  _
+                                                    |__/ (_) ||| (_| | | )
 
 """
         )

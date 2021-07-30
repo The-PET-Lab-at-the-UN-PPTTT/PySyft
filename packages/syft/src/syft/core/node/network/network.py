@@ -1,5 +1,5 @@
 # stdlib
-import asyncio
+import os
 from typing import Any
 from typing import Dict
 from typing import List
@@ -7,6 +7,7 @@ from typing import Optional
 from typing import Union
 
 # third party
+import ascii_magic
 from nacl.signing import SigningKey
 from nacl.signing import VerifyKey
 
@@ -22,7 +23,6 @@ from ..common.node import Node
 from ..common.node_manager.association_request_manager import AssociationRequestManager
 from ..common.node_manager.group_manager import GroupManager
 from ..common.node_manager.role_manager import RoleManager
-from ..common.node_manager.setup_manager import SetupManager
 from ..common.node_manager.user_manager import UserManager
 from ..common.node_service.association_request.association_request_service import (
     AssociationRequestService,
@@ -59,7 +59,6 @@ class Network(Node):
         signing_key: Optional[SigningKey] = None,
         verify_key: Optional[VerifyKey] = None,
         root_key: Optional[VerifyKey] = None,
-        db_path: Optional[str] = None,
         db_engine: Any = None,
     ):
         super().__init__(
@@ -70,7 +69,6 @@ class Network(Node):
             vm=vm,
             signing_key=signing_key,
             verify_key=verify_key,
-            db_path=db_path,
             db_engine=db_engine,
         )
 
@@ -82,7 +80,6 @@ class Network(Node):
         self.users = UserManager(db_engine)
         self.roles = RoleManager(db_engine)
         self.groups = GroupManager(db_engine)
-        self.setup = SetupManager(db_engine)
         self.association_requests = AssociationRequestManager(db_engine)
 
         # Grid Network Services
@@ -109,54 +106,21 @@ class Network(Node):
         super().post_init()
         self.set_node_uid()
 
-    def loud_print(self):
-        # tprint("Grid", "alpha")
+    def loud_print(self) -> None:
+        install_path = os.path.abspath(
+            os.path.join(os.path.realpath(__file__), "../../../../img/")
+        )
+        ascii_magic.to_terminal(
+            ascii_magic.from_image_file(
+                img_path=install_path + "/pygrid.png", columns=83
+            )
+        )
+
         print(
-            """                          `-+yy+-`
-                        .:oydddddhyo:.
-                     `/yhdddddddddddhys:`
-                 .`   ./shdddddddddhys/.   ``
-             `./shhs/.`  .:oydddhyo:.   .:osyo:.`
-          `-oydmmmmmmdy+-`  `-//-`  `-/syhhhhhyyo/-`
-        `+hmmmmmmmmmmddddy+`      `/shhhhhhhhhyyyyys/`
-         `-ohdmmmmmmmddy+-`  `::.  `-/syhhhhhhyyys/-`
-      -o-`   ./yhddhs/.  `./shddhs/.`  .:oyyhyo:.   `./.
-      -ddhs/.`  .::`  `-+ydddddddddhs+-`  `--`   `-+oyy-
-      -dddddhs+-   `/shdddddddddddddhhhyo:`   .:+syyyyy-
-      -ddddddddh.  -hdddddddddddddddhhhhyy-  `syyyyyyyy-
-      -dddddhhhh-  -hhhhhhddddddddhhyyysss-  `ssssysyyy-
-      -hhhhhhhhh-  -hhyyyyyyhhddhyysssssss-  `sssssssss-
-       `-+yhhhhh.  -yyyyyyyyyyysssssssssss-  `ssssso/-`
-       `   ./syy.  -yyyyyyyyyyysssssssssss-  `sso:.   `
-      -y+:`   `-`  -yyyyyyyyssssssssssssss-  `-`   `-/o-
-      -hhhyo/.     `+ssyyssssssssssssssss+`     .:+ssss-
-      -yyyyyyys/`     ./osssssssssssso/.`    `/osssssss-
-      -yyyyyyyyy.  ``    `:+sssoso+:.    ``  `sssssssss-
-      -yyyyyyyys.  -so/.     -//-`    .:os-  `sssssssss-
-      `+syyyssss.  -sssso/-`      `-/ossss-  `ssssssss+`
-         .:ossss.  .ssssssss+`  `+ooooosss-  `sssso:.
-            `-+s.  .ssssssooo.  .oooooooos-  `o/-`
-                   .sssoooooo.  .ooooooooo-
-                   `-/ooooooo.  `ooooooo/-`
-                       .:+ooo.  `ooo+:.`
-                          `-/.  `/-`
+            r"""
 
-
-
-
-
-``````````                 ``````````            ```          ``
-``       ``               ```      ```            `           ``
-``       ``  ```     ```  ``             ``````  ```   `````````
-``     ````   ``    ```   ``    ``````   ```     ```  ```    ```
-`````````      ``  ```    ``     `````   ``      ```  ``      ``
-``              `` ``     ``        ``   ``      ```  ``      ``
-``              ````      ````    ````   ``      ```  ```    ```
-``               ```        ````````     ``      ``    `````````
-               ```
-              ```
-                                |\ |  _ |_      _   _ |
-                                | \| (- |_ \)/ (_) |  |(
+                                                    |\ |  _ |_      _   _ |
+                                                    | \| (- |_ \)/ (_) |  |(
 
 """
         )

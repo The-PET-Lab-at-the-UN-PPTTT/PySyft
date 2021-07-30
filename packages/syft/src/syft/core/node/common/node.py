@@ -24,6 +24,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+# syft absolute
+from syft.core.node.common.node_manager.setup_manager import SetupManager
+from syft.core.node.common.node_table import Base
+
 # relative
 from ....lib import lib_ast
 from ....logger import debug
@@ -80,7 +84,6 @@ from ..common.node_service.object_search_permission_update.obj_search_permission
 from ..common.node_service.resolve_pointer_type.resolve_pointer_type_service import (
     ResolvePointerTypeService,
 )
-from ..common.node_service.testing_services.remote_add_service import RemoteAddService
 from ..common.node_service.testing_services.repr_service import ReprService
 from .action.exception_action import ExceptionMessage
 from .action.exception_action import UnknownPrivateException
@@ -124,7 +127,6 @@ class Node(AbstractNode):
         vm: Optional[Location] = None,
         signing_key: Optional[SigningKey] = None,
         verify_key: Optional[VerifyKey] = None,
-        db_path: Optional[str] = None,
         TableBase: Any = None,
         db_engine: Any = None,
         db: Any = None,
@@ -149,7 +151,8 @@ class Node(AbstractNode):
 
             # If a DB engine isn't provided then
             if db_engine is None:
-                engine = create_engine("sqlite://", echo=False)
+                db_engine = create_engine("sqlite://", echo=False)
+                Base.metadata.create_all(db_engine)
 
             db = sessionmaker(bind=db_engine)()
 
@@ -170,6 +173,7 @@ class Node(AbstractNode):
         # self.store is the elastic memory.
 
         self.store = BinObjectManager(db=self.db_engine)
+        self.setup = SetupManager(database=self.db_engine)
 
         # We need to register all the services once a node is created
         # On the off chance someone forgot to do this (super unlikely)
@@ -244,7 +248,6 @@ class Node(AbstractNode):
         self.immediate_services_with_reply.append(ImmediateObjectSearchService)
         self.immediate_services_with_reply.append(GetReprService)
         self.immediate_services_with_reply.append(ResolvePointerTypeService)
-        self.immediate_services_with_reply.append(RemoteAddService)
         # for services which can run at a later time and do not return a reply
         self.eventual_services_without_reply = list()
         self.eventual_services_without_reply.append(
@@ -316,7 +319,7 @@ class Node(AbstractNode):
                 elif type(self).__name__ == "Network":
                     self.network = location
                 print(f"Finished setting Node UID. {location}")
-        except Exception as e:
+        except Exception:
             print("Setup hasnt run yet so ignoring set_node_uid")
             pass
 
