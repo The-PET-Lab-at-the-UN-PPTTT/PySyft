@@ -1,16 +1,29 @@
+# future
+from __future__ import annotations
+
 # stdlib
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Type
 import uuid
+
+# third party
+from nacl.signing import VerifyKey
+from numpy.typing import ArrayLike
 
 # relative
 # syft relative
 from ..adp.vm_private_scalar_manager import VirtualMachinePrivateScalarManager
 from .manager import TensorChainManager
+from .passthrough import PassthroughTensor
 from .passthrough import is_acceptable_simple_type
 
 _SingleEntityPhiTensorRef = None
 
 
-def _SingleEntityPhiTensor():
+def _SingleEntityPhiTensor() -> Type[PassthroughTensor]:
     global _SingleEntityPhiTensorRef
     if _SingleEntityPhiTensorRef is None:
         # syft relative
@@ -24,7 +37,7 @@ def _SingleEntityPhiTensor():
 _RowEntityPhiTensorRef = None
 
 
-def _RowEntityPhiTensor():
+def _RowEntityPhiTensor() -> Type[PassthroughTensor]:
     global _RowEntityPhiTensorRef
     if _RowEntityPhiTensorRef is None:
         # syft relative
@@ -38,7 +51,7 @@ def _RowEntityPhiTensor():
 _AutogradTensorRef = None
 
 
-def _AutogradTensor():
+def _AutogradTensor() -> Type[PassthroughTensor]:
     global _AutogradTensorRef
     if _AutogradTensorRef is None:
         # syft relative
@@ -54,17 +67,17 @@ class AutogradTensorAncestor(TensorChainManager):
     of .child objects"""
 
     @property
-    def grad(self):
+    def grad(self):  # type: ignore
         child_gradient = self.child.grad
         if child_gradient is None:
             return None
         return self.__class__(child_gradient)
 
     @property
-    def requires_grad(self):
+    def requires_grad(self) -> bool:
         return self.child.requires_grad
 
-    def backward(self, grad=None):
+    def backward(self, grad=None):  # type: ignore
 
         AutogradTensor = _AutogradTensor()
 
@@ -78,17 +91,16 @@ class AutogradTensorAncestor(TensorChainManager):
             if grad is not None and not is_acceptable_simple_type(grad):
                 grad = grad.child
 
-            return self.child.backward(grad, backprop_id=uuid.uuid4())
+            return self.child.backward(grad, backprop_id=uuid.uuid4())  # type: ignore
         else:
             raise Exception(
                 "No AutogradTensor found in chain, but backward() method called."
             )
 
-    def autograd(self, requires_grad=True):
-
+    def autograd(self, requires_grad: bool = True) -> AutogradTensorAncestor:
         AutogradTensor = _AutogradTensor()
 
-        self.push_abstraction_top(AutogradTensor, requires_grad=requires_grad)
+        self.push_abstraction_top(AutogradTensor, requires_grad=requires_grad)  # type: ignore
 
         return self
 
@@ -97,29 +109,34 @@ class PhiTensorAncestor(TensorChainManager):
     """Inherited by any class which might have or like to have SingleEntityPhiTensor in its chain
     of .child objects"""
 
+    def __init__(self) -> None:
+        pass
+
     @property
-    def min_vals(self):
+    def min_vals(self):  # type: ignore
         return self.__class__(self.child.min_vals)
 
     @property
-    def max_vals(self):
+    def max_vals(self):  # type: ignore
         return self.__class__(self.child.max_vals)
 
     @property
-    def gamma(self):
+    def gamma(self):  # type: ignore
         return self.__class__(self.child.gamma)
 
-    def publish(self, acc, sigma):
-        return self.__class__(self.child.publish(acc=acc, sigma=sigma))
+    def publish(self, acc: Any, sigma: float, user_key: VerifyKey) -> PhiTensorAncestor:
+        return self.__class__(
+            self.child.publish(acc=acc, sigma=sigma, user_key=user_key)
+        )
 
     def private(
         self,
-        min_val,
-        max_val,
-        scalar_manager=VirtualMachinePrivateScalarManager(),
-        entities=None,
-        entity=None,
-    ):
+        min_val: ArrayLike,
+        max_val: ArrayLike,
+        scalar_manager: VirtualMachinePrivateScalarManager = VirtualMachinePrivateScalarManager(),
+        entities: Optional[List] = None,
+        entity: Optional[Dict[str, Any]] = None,
+    ) -> PhiTensorAncestor:
         """ """
 
         if entity is not None:
@@ -144,7 +161,7 @@ class PhiTensorAncestor(TensorChainManager):
                 entity=entity,
                 min_vals=min_vals,
                 max_vals=max_vals,
-                scalar_manager=scalar_manager,
+                scalar_manager=scalar_manager,  # type: ignore
             )
 
         # if there's row-level entities - push a RowEntityPhiTensor
@@ -156,7 +173,7 @@ class PhiTensorAncestor(TensorChainManager):
             for i, entity in enumerate(entities):
 
                 if isinstance(min_val, (float, int)):
-                    min_vals = (self.child[i] * 0) + min_val
+                    min_vals = (self.child[i : i + 1] * 0) + min_val  # noqa: E203
                 else:
                     raise Exception(
                         "min_val should be a float, got "
@@ -165,7 +182,7 @@ class PhiTensorAncestor(TensorChainManager):
                     )
 
                 if isinstance(max_val, (float, int)):
-                    max_vals = (self.child[i] * 0) + max_val
+                    max_vals = (self.child[i : i + 1] * 0) + max_val  # noqa: E203
                 else:
                     raise Exception(
                         "min_val should be a float, got "
@@ -173,9 +190,11 @@ class PhiTensorAncestor(TensorChainManager):
                         + " instead."
                     )
 
+                value = self.child[i : i + 1]  # noqa: E203
+
                 new_list.append(
                     class_type(
-                        child=self.child[i],
+                        child=value,
                         entity=entity,
                         min_vals=min_vals,
                         max_vals=max_vals,
@@ -183,7 +202,7 @@ class PhiTensorAncestor(TensorChainManager):
                     )
                 )
 
-            self.replace_abstraction_top(_RowEntityPhiTensor(), rows=new_list)
+            self.replace_abstraction_top(_RowEntityPhiTensor(), rows=new_list)  # type: ignore
 
         # TODO: if there's element-level entities - push all elements with PhiScalars
         else:
