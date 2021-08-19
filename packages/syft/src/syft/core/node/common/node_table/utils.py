@@ -1,12 +1,15 @@
 # stdlib
 from typing import Any
 from typing import Dict
+from typing import Tuple as TypeTuple
 
 # third party
+from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import sessionmaker
 
 # relative
-from ..node_table import Base
+from . import Base
 from .groups import Group
 from .roles import Role
 from .user import SyftUser
@@ -16,7 +19,7 @@ from .usergroup import UserGroup
 def model_to_json(model: Base) -> Dict[str, Any]:
     """Returns a JSON representation of an SQLAlchemy-backed object."""
     json = {}
-    for col in model.__mapper__.attrs.keys():
+    for col in model.__mapper__.attrs.keys():  # type: ignore
         if col != "hashed_password" and col != "salt":
             if col == "date" or col == "created_at" or col == "destroyed_at":
                 # Cast datetime object to string
@@ -95,3 +98,11 @@ def seed_db(db: Engine) -> None:
     )
     db.add(new_role)
     db.commit()
+
+
+def create_memory_db_engine() -> TypeTuple[Engine, sessionmaker]:
+    db_engine = create_engine("sqlite://", echo=False)
+    Base.metadata.create_all(db_engine)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
+    seed_db(SessionLocal())
+    return db_engine, SessionLocal

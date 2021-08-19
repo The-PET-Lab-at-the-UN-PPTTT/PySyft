@@ -5,14 +5,13 @@ import uuid
 import numpy as np
 
 # relative
-# syft relative
 from ...passthrough import is_acceptable_simple_type
 from ..tensor import AutogradTensor
 from .op import Op
 
 
 class PowOp(Op):
-    def forward(self, x: AutogradTensor, y: AutogradTensor) -> AutogradTensor:
+    def forward(self, x: AutogradTensor, y: AutogradTensor) -> AutogradTensor:  # type: ignore
         self.x = x
         self.y = y
 
