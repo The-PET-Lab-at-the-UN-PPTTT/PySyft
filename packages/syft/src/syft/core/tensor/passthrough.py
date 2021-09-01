@@ -1,4 +1,3 @@
-# future
 # type: ignore
 # future
 from __future__ import annotations
@@ -18,21 +17,11 @@ import numpy as np
 import torch
 
 # relative
+# from ..pointer.pointer import Pointer
 from .util import implements
 from .util import query_implementation
 
 AcceptableSimpleType = Union[int, bool, float, np.ndarray]
-
-
-def inputs2child(
-    *args: List[Any], **kwargs: Dict[Any, Any]
-) -> TypeTuple[List[Any], Dict[Any, Any]]:
-    args = [x.child if isinstance(x, PassthroughTensor) else x for x in args]
-    kwargs = {
-        x[0]: x[1].child if isinstance(x[1], PassthroughTensor) else x[1]
-        for x in kwargs.items()
-    }
-    return args, kwargs
 
 
 def is_acceptable_simple_type(obj):
@@ -58,7 +47,50 @@ class PassthroughTensor(np.lib.mixins.NDArrayOperatorsMixin):
 
     @property
     def shape(self) -> Union[TypeTuple[Any, ...], List[Any]]:
-        return tuple(self.child.shape)
+        return self.child.shape
+
+    # @property
+    # def shape(self) -> Union[TypeTuple[Any, ...], List[Any]]:
+    #     """There are 3 options for where shape information can be sourced from:
+
+    #     - self.client_shape: which is a logical attempt on the client side to infer
+    #       shape information
+    #     - self.child.shape: which just says that this layer of logical abstraction isn't
+    #       responsible for tracking shape and inhereits it from the child
+    #     - Pointer.shape: a special case of the other two wherein shape is called on a
+    #       Pointer and it fetches that information from a remote object if
+    #       Pointer.client_shape is not available (is None).
+
+    #     By default the priority for where shape information should come from is:
+    #     - self.client_shape is first because this doesn't leverage private information.
+    #     - self.child.shape is second as a delegation of the first
+    #     - Pointer.client_shape as a special case of the previous
+    #     - Pointer.remote_shape is a last resort because it requires calling .request()
+    #       and .get()
+
+    #     """
+    #     if self.client_shape is not None:
+    #         return self.client_shape
+
+    #     elif self.child is not None:
+
+    #         # note that this will attempt client_shape on the child before
+    #         # anything else because it too will call this method
+    #         shape = self.child.shape
+
+    #         if isinstance(shape, Pointer):
+    #             return shape.get(request_block=True)
+    #         else:
+    #             return shape
+
+    #     else:
+    #         msg = (
+    #             "Not sure how to find shape because self.client_shape and self.child"
+    #             + "are both none"
+    #         )
+    #         raise Exception(msg)
+
+    #     return tuple(self.child.shape)
 
     def logical_and(self, other):
         if is_acceptable_simple_type(other) or (self.child.shape == other.child.shape):
@@ -90,10 +122,8 @@ class PassthroughTensor(np.lib.mixins.NDArrayOperatorsMixin):
             return self.__class__(self.child - other)
         return self.__class__(self.child - other.child)
 
-    def __rsub__(
-        self, other: Union[Type[PassthroughTensor], AcceptableSimpleType]
-    ) -> PassthroughTensor:
-        return self.__class__(-((self - other).child))
+    def __rsub__(self, other) -> PassthroughTensor:
+        return self.__class__(-(self - other).child)
 
     def __gt__(
         self,

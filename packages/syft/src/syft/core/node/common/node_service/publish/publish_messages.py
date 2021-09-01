@@ -6,10 +6,7 @@ from google.protobuf.reflection import GeneratedProtocolMessageType
 from typing_extensions import final
 
 # relative
-# syft relative
-from ......proto.core.node.domain.service.publish_scalars_service_pb2 import (
-    PublishScalarsAction as PublishScalarsAction_PB,
-)  # type: ignore
+from ......proto.core.node.domain.service.pss_pb2 import PSA  # type: ignore
 from .....common.message import ImmediateSyftMessageWithoutReply  # type: ignore
 from .....common.serde.deserialize import _deserialize as deserialize  # type: ignore
 from .....common.serde.serializable import bind_protobuf  # type: ignore
@@ -33,7 +30,7 @@ class PublishScalarsAction(ImmediateSyftMessageWithoutReply):
         self.publish_ids_at_location = publish_ids_at_location
         self.sigma = sigma
 
-    def _object2proto(self) -> PublishScalarsAction_PB:
+    def _object2proto(self) -> PSA:
         """Returns a protobuf serialization of self.
 
         As a requirement of all objects which inherit from Serializable,
@@ -49,7 +46,7 @@ class PublishScalarsAction(ImmediateSyftMessageWithoutReply):
             object.
         """
 
-        return PublishScalarsAction_PB(
+        return PSA(
             id_at_location=serialize(self.id_at_location),
             address=serialize(self.address),
             publish_ids_at_location=[
@@ -59,7 +56,7 @@ class PublishScalarsAction(ImmediateSyftMessageWithoutReply):
         )
 
     @staticmethod
-    def _proto2object(proto: PublishScalarsAction_PB) -> "PublishScalarsAction":
+    def _proto2object(proto: PSA) -> "PublishScalarsAction":
         """Creates a PublishScalarsAction from a protobuf
 
         As a requirement of all objects which inherit from Serializable,
@@ -100,4 +97,4 @@ class PublishScalarsAction(ImmediateSyftMessageWithoutReply):
 
         """
 
-        return PublishScalarsAction_PB
+        return PSA

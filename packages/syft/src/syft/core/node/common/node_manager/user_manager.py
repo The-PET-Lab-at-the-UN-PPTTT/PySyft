@@ -11,6 +11,8 @@ from bcrypt import gensalt
 from bcrypt import hashpw
 from nacl.encoding import HexEncoder
 from nacl.signing import VerifyKey
+from pydantic import BaseModel
+from pydantic import EmailStr
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Query
 
@@ -23,6 +25,42 @@ from ..exceptions import UserNotFoundError
 from ..node_table.user import SyftUser
 from .database_manager import DatabaseManager
 from .role_manager import RoleManager
+
+
+# Shared properties
+class UserBase(BaseModel):
+    email: Optional[EmailStr] = None
+    is_active: Optional[bool] = True
+    is_superuser: bool = False
+    full_name: Optional[str] = None
+
+
+# Properties to receive via API on creation
+class UserCreate(UserBase):
+    email: EmailStr
+    password: str
+
+
+# Properties to receive via API on update
+class UserUpdate(UserBase):
+    password: Optional[str] = None
+
+
+class UserInDBBase(UserBase):
+    id: Optional[int] = None
+
+    class Config:
+        orm_mode = True
+
+
+# Additional properties to return via API
+class User(UserInDBBase):
+    pass
+
+
+# Additional properties stored in DB
+class UserInDB(UserInDBBase):
+    hashed_password: str
 
 
 class UserManager(DatabaseManager):

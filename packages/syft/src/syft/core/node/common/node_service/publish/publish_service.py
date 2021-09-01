@@ -10,14 +10,12 @@ from nacl.signing import VerifyKey
 # relative
 from ......lib.python import List  # type: ignore
 from ......logger import traceback_and_raise  # type: ignore
-
-# syft relative
 from .....adp.publish import publish  # type: ignore
-from .....common.uid import UID
-from .....store.storeable_object import StorableObject
+from .....common.uid import UID  # type: ignore
+from .....store.storeable_object import StorableObject  # type: ignore
 from .....tensor.tensor import PassthroughTensor  # type: ignore
-from ....abstract.node import AbstractNode
-from ..node_service import ImmediateNodeServiceWithoutReply
+from ....abstract.node import AbstractNode  # type: ignore
+from ..node_service import ImmediateNodeServiceWithoutReply  # type: ignore
 from .publish_messages import PublishScalarsAction  # type: ignore
 
 
@@ -27,16 +25,10 @@ class PublishScalarsService(ImmediateNodeServiceWithoutReply):
         node: AbstractNode, msg: PublishScalarsAction, verify_key: VerifyKey
     ) -> None:
 
-        print("\n\nPROCESSING PUBLISH SCALAR ACTION!!!\n\n")
-        print("Verify Key:" + str(type(verify_key)))
-        # print("Deser Verify Key:" + str(_deserialize(verify_key, from_bytes=True)))
-        print(node.acc.entity2ledger)
-        print(node.acc)
-
         # get scalar objects from store
         results = List()
         for publish_id in msg.publish_ids_at_location:
-
+            print(publish_id)
             try:
                 publish_object = node.store[publish_id]
 

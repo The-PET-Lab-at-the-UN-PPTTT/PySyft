@@ -54,6 +54,10 @@ export interface UserMe extends Omit<User, 'role'> {
   role: number
 }
 
+export interface UserMe extends Omit<User, 'role'> {
+  role: number
+}
+
 export type UserPermissions =
   | 'canTriageRequests'
   | 'canEditSettings'

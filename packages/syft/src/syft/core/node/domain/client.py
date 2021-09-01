@@ -37,6 +37,9 @@ from ..common.client_manager.dataset_api import DatasetRequestAPI
 from ..common.client_manager.group_api import GroupRequestAPI
 from ..common.client_manager.role_api import RoleRequestAPI
 from ..common.client_manager.user_api import UserRequestAPI
+from ..common.node_service.get_remaining_budget.get_remaining_budget_messages import (
+    GetRemainingBudgetMessage,
+)
 from ..common.node_service.network_search.network_search_messages import (
     NetworkSearchMessage,
 )
@@ -309,6 +312,11 @@ class DomainClient(Client):
         self.association = AssociationRequestAPI(client=self)
         self.datasets = DatasetRequestAPI(client=self)
 
+    @property
+    def privacy_budget(self) -> float:
+        msg = GetRemainingBudgetMessage(address=self.address, reply_to=self.address)
+        return self.send_immediate_msg_with_reply(msg).budget  # type: ignore
+
     def load(
         self, obj_ptr: Type[Pointer], address: Address, pointable: bool = False
     ) -> None:
@@ -429,7 +437,7 @@ class DomainClient(Client):
 
     def __repr__(self) -> str:
         no_dash = str(self.id).replace("-", "")
-        return f"<{type(self).__name__}: {no_dash}>"
+        return f"<{type(self).__name__} - {self.name}: {no_dash}>"
 
     def update_vars(self, state: dict) -> pd.DataFrame:
         for ptr in self.store.store:

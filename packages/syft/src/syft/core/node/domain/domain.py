@@ -42,6 +42,9 @@ from ..common.node_service.association_request.association_request_service impor
 from ..common.node_service.dataset_manager.dataset_manager_service import (
     DatasetManagerService,
 )
+from ..common.node_service.get_remaining_budget.get_remaining_budget_service import (
+    GetRemainingBudgetService,
+)
 from ..common.node_service.group_manager.group_manager_service import (
     GroupManagerService,
 )
@@ -63,6 +66,8 @@ from ..common.node_service.tensor_manager.tensor_manager_service import (
     TensorManagerService,
 )
 from ..common.node_service.user_manager.user_manager_service import UserManagerService
+from ..common.node_table import Base
+from ..common.node_table.utils import create_memory_db_engine
 from ..device import Device
 from ..device import DeviceClient
 from .client import DomainClient
@@ -87,7 +92,12 @@ class Domain(Node):
         verify_key: Optional[VerifyKey] = None,
         root_key: Optional[VerifyKey] = None,
         db_engine: Any = None,
+        db: Any = None,
     ):
+
+        if db_engine is None:
+            db_engine, _ = create_memory_db_engine()
+
         super().__init__(
             name=name,
             network=network,
@@ -97,7 +107,9 @@ class Domain(Node):
             signing_key=signing_key,
             verify_key=verify_key,
             db_engine=db_engine,
+            db=db,
         )
+
         # specific location with name
         self.domain = SpecificLocation(name=self.name)
         self.root_key = root_key
@@ -122,6 +134,7 @@ class Domain(Node):
         # Grid Domain Services
         self.immediate_services_with_reply.append(AssociationRequestService)
         # self.immediate_services_with_reply.append(DomainInfrastructureService)
+        self.immediate_services_with_reply.append(GetRemainingBudgetService)
         self.immediate_services_with_reply.append(NodeSetupService)
         self.immediate_services_with_reply.append(TensorManagerService)
         self.immediate_services_with_reply.append(RoleManagerService)
@@ -148,6 +161,8 @@ class Domain(Node):
         self.handled_requests: Dict[Any, float] = {}
 
         self.post_init()
+
+        Base.metadata.create_all(db_engine)  # type: ignore
 
         # run the handlers in an asyncio future
         asyncio.ensure_future(self.run_handlers())

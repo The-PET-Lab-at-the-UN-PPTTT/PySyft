@@ -15,8 +15,6 @@ import numpy as np
 from ....core.adp.vm_private_scalar_manager import (
     VirtualMachinePrivateScalarManager as TypeScalarManager,
 )
-
-# syft relative
 from ....core.common.serde.recursive import RecursiveSerde
 from ...common.serde.serializable import bind_protobuf
 from ...tensor.types import AcceptableSimpleType  # type: ignore
@@ -87,7 +85,7 @@ class RowEntityPhiTensor(PassthroughTensor, RecursiveSerde):
     def shape(self) -> Tuple[Any, ...]:
         return [len(self.child)] + list(self.child[0].shape)  # type: ignore
 
-    def __eq__(self, other) -> RowEntityPhiTensor:
+    def __eq__(self, other: Any) -> RowEntityPhiTensor:
 
         if is_acceptable_simple_type(other) or len(self.child) == len(other.child):  # type: ignore
             new_list = list()
@@ -236,7 +234,6 @@ class RowEntityPhiTensor(PassthroughTensor, RecursiveSerde):
 
     # Since this is being used differently compared to supertype, ignoring type annotation errors
     def transpose(self, *dims: Any) -> RowEntityPhiTensor:  # type: ignore
-        print(dims)
         if dims[0] != 0:
             raise Exception("Can't move dim 0 in RowEntityPhiTensor at this time")
 

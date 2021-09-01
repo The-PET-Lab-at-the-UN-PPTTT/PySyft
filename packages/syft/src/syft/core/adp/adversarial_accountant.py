@@ -5,6 +5,7 @@
 # - add a unit test for each method (at least)
 
 # stdlib
+import math
 from typing import Dict as TypeDict
 from typing import KeysView as TypeKeysView
 from typing import List as TypeList
@@ -18,30 +19,32 @@ from nacl.signing import VerifyKey
 from sqlalchemy.engine import Engine
 
 # relative
-from ..common.serde.recursive import RecursiveSerde
 from ..node.common.node_manager.ledger_manager import LedgerManager
 from .entity import Entity
 from .idp_gaussian_mechanism import iDPGaussianMechanism
-from .scalar import PhiScalar
 
 
 class AdversarialAccountant:
+    """Adversarial Accountant class that keeps track of budget and maintains a privacy ledger."""
+
     def __init__(
         self, db_engine: Engine, max_budget: float = 10, delta: float = 1e-6
     ) -> None:
 
         # this is a database-backed lookup table
+        # maps an entity to an actual budget
         self.entity2ledger = LedgerManager(db_engine)
 
         # this is a temporary lookup table for mechanisms we're not sure
         # we're going to keep (See publish.py for how this is used)
-        self.temp_entity2ledger = {}
+        self.temp_entity2ledger: TypeDict = {}
         self.max_budget = max_budget
         self.delta = delta
 
     def temp_append(
         self, entity2mechanisms: TypeDict[Entity, TypeList[Mechanism]]
     ) -> None:
+        # add the mechanisms to all of the entities
         for key, ms in entity2mechanisms.items():
             if key not in self.temp_entity2ledger.keys():
                 self.temp_entity2ledger[key] = list()
@@ -50,23 +53,30 @@ class AdversarialAccountant:
 
     def append(self, entity2mechanisms: TypeDict[str, TypeList[Mechanism]]) -> None:
         mechanisms = list()
+        # add all the mechanisms
         for _, ms in entity2mechanisms.items():
             for m in ms:
                 mechanisms.append(m)
 
         self.entity2ledger.register_mechanisms(mechanisms)
 
-    def save_temp_ledger_to_longterm_ledger(self):
+    # save the temporary ledger into the database
+    def save_temp_ledger_to_longterm_ledger(self) -> None:
         self.append(entity2mechanisms=self.temp_entity2ledger)
 
+    # return epsilons for each entity
     def get_eps_for_entity(
-        self, entity: Entity, user_key: Optional[VerifyKey] = None
-    ) -> PhiScalar:
+        self,
+        entity: Entity,
+        user_key: Optional[VerifyKey] = None,
+        returned_epsilon_is_private: bool = False,
+    ) -> float:
+
         # compose them with the transformation: compose
         compose = Composition()
 
         # fetch mechanisms from the database
-        table_mechanisms = self.entity2ledger.query(entity_name=entity.name)
+        table_mechanisms = self.entity2ledger.query(entity_name=entity.name)  # type: ignore
         mechanisms = [x.obj for x in table_mechanisms]
 
         # filter out mechanisms that weren't created by this data scientist user
@@ -77,9 +87,6 @@ class AdversarialAccountant:
                     filtered_mechanisms.append(mech)
 
             mechanisms = filtered_mechanisms
-
-        # print("Num mechanisms before TEMP:" + str(len(mechanisms)))
-        # print("self.temp_entity2ledger:" + str(self.temp_entity2ledger))
 
         if entity in self.temp_entity2ledger.keys():
             mechanisms = mechanisms + self.temp_entity2ledger[entity]
@@ -109,6 +116,13 @@ class AdversarialAccountant:
         # how do we ensure that no data scientist
         # exceeds the budget of any entity?
 
+        if returned_epsilon_is_private:
+            for mech in mechanisms:
+                mech.params["value"] = mech.params["private_value"]
+        else:
+            for mech in mechanisms:
+                mech.params["value"] = mech.params["public_value"]
+
         # map dataset
         if len(mechanisms) > 0:
             composed_mech = compose(mechanisms, [1] * len(mechanisms))
@@ -125,7 +139,6 @@ class AdversarialAccountant:
         else:
             eps = 0
 
-        # print("Epsilon" + str(eps))
         return float(eps)
 
         # # Query for eps given delta
@@ -136,55 +149,99 @@ class AdversarialAccountant:
         #     entity=entity,
         # )
 
-    def has_budget(self, entity: Entity, user_key: VerifyKey) -> bool:
-        spend = self.get_eps_for_entity(entity=entity, user_key=user_key)
-        # print("SPEND:" + str(spend))
+    # checks if the entity has budget or not
+    def has_budget(
+        self,
+        entity: Entity,
+        user_key: VerifyKey,
+        returned_epsilon_is_private: bool = False,
+    ) -> bool:
+        spend = self.get_eps_for_entity(
+            entity=entity,
+            user_key=user_key,
+            returned_epsilon_is_private=returned_epsilon_is_private,
+        )
+
         user_budget = self.entity2ledger.get_user_budget(user_key=user_key)
-        # print("USER BUDGET:" + str(user_budget))
+
         # print("ACCOUNTANT MAX BUDGET", self.max_budget)
         # @Andrew can we use <= or does it have to be <
         has_budget = spend <= user_budget
         # print(f"has_budget = {spend} < {user_budget}")
-
+        print("\n\nHas Budget:" + str(has_budget))
+        print("SPEND:" + str(spend))
+        print("USER BUDGET:" + str(user_budget))
         return has_budget
 
-    def user_budget(self, user_key: VerifyKey):
-        max_spend = 0
+    # returns maximum entity epsilon
+    def user_budget(
+        self, user_key: VerifyKey, returned_epsilon_is_private: bool = False
+    ) -> float:
+        max_spend = 0.0
 
         for ent in self.entities:
-            spend = self.get_eps_for_entity(entity=ent, user_key=user_key)
-            if spend > max_spend:
-                max_spend = spend
+            spend = self.get_eps_for_entity(
+                entity=ent,
+                user_key=user_key,
+                returned_epsilon_is_private=returned_epsilon_is_private,
+            )
+            if math.isnan(spend) or math.isinf(spend):
+                print(f"Warning: Spend is {spend}")
 
-        return max_spend
+            if spend > max_spend:
+                max_spend = float(spend)
+
+        return float(max_spend)
+
+    def get_remaining_budget(
+        self, user_key: VerifyKey, returned_epsilon_is_private: bool = False
+    ) -> float:
+        max_spend = self.user_budget(
+            user_key=user_key, returned_epsilon_is_private=returned_epsilon_is_private
+        )
+
+        if math.isnan(max_spend) or math.isinf(max_spend):
+            print(f"Warning: Remaining budget not valid with max_spend {max_spend}")
+
+        user_budget = self.entity2ledger.get_user_budget(user_key=user_key)
+
+        return float(user_budget - max_spend)
 
     @property
     def entities(self) -> TypeKeysView[Entity]:
         return self.entity2ledger.keys()
 
+    # returns a collection of entities having no budget
     def overbudgeted_entities(
         self,
         temp_entities: TypeDict[Entity, TypeList[iDPGaussianMechanism]],
         user_key: VerifyKey,
+        returned_epsilon_is_private: bool = False,
     ) -> TypeSet[Entity]:
         entities = set()
 
         for entity, _ in temp_entities.items():
-            if not self.has_budget(entity, user_key=user_key):
+            if not self.has_budget(
+                entity,
+                user_key=user_key,
+                returned_epsilon_is_private=returned_epsilon_is_private,
+            ):
                 entities.add(entity)
 
         return entities
 
-    def print_ledger(self, delta: float = 1e-6) -> None:
+    # prints entity and its epsilon value
+    def print_ledger(self, returned_epsilon_is_private: bool = False) -> None:
         for mechanism in self.entity2ledger.mechanism_manager.all():
             entity = self.entity2ledger.entity_manager.first(name=mechanism.entity_name)
-            print(
-                str(mechanism.entity_name) + "\t" + str(self.get_eps_for_entity(entity))
-            )
-
-
-class AccountantReference(RecursiveSerde):
-    __attr_allowlist__ = ["msg"]
-
-    def __init__(self, msg) -> None:
-        self.msg = msg
+            if entity is not None:
+                print(
+                    str(mechanism.entity_name)
+                    + "\t"
+                    + str(
+                        self.get_eps_for_entity(
+                            entity=entity,
+                            returned_epsilon_is_private=returned_epsilon_is_private,
+                        )
+                    )
+                )

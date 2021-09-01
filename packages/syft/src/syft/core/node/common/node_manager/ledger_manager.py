@@ -1,5 +1,7 @@
 # stdlib
 from collections.abc import KeysView
+from typing import List
+from typing import Optional
 
 # third party
 from nacl.encoding import HexEncoder
@@ -8,6 +10,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
 # syft absolute
+from syft.core.adp.idp_gaussian_mechanism import iDPGaussianMechanism
 from syft.core.common.serde import _serialize
 from syft.core.node.common.node_table.user import SyftUser
 
@@ -78,18 +81,20 @@ class LedgerManager(DatabaseManager):
         return budget
 
     def keys(self) -> KeysView:
-        return KeysView(self.entity_manager.all())
+        return KeysView(self.entity_manager.all())  # type: ignore
 
-    def register_mechanisms(self, mechanisms: list):
+    def register_mechanisms(self, mechanisms: list) -> None:
 
         for m in mechanisms:
             # if entity doesnt exist:
             if not self.entity_manager.contain(name=m.entity_name):
                 # write to the entity table
                 self.entity_manager.register(name=m.entity_name)
-            self.mechanism_manager.register(m)
+            self.mechanism_manager.register(m)  # type: ignore
 
-    def query(self, entity_name=None, user_key=None):
+    def query(  # type: ignore
+        self, entity_name: Optional[str] = None, user_key: Optional[str] = None
+    ) -> List[iDPGaussianMechanism]:
         if entity_name is not None and user_key is not None:
             return self.mechanism_manager.query(
                 entity_name=entity_name, user_key=user_key
