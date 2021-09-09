@@ -1,8 +1,5 @@
 FROM python:3.9.6-slim as build
 
-export INSTALL_DEV=false
-export TRAEFIK_PUBLIC_NETWORK_IS_EXTERNAL=false
-
 RUN \
   apt-get update && \
   apt-get install -y --no-install-recommends curl wget
